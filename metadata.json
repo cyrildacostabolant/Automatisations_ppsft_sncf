@@ -1,0 +1,6 @@
+{
+  "name": "Automatisations Peoplesoft SNCF",
+  "description": "Application d'automatisation et de gestion des processus PeopleSoft SNCF (Forcer Sourcing DA, Codification Fournisseur).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

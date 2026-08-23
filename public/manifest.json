@@ -1,0 +1,16 @@
+{
+  "short_name": "PeopleSoft SNCF",
+  "name": "Automatisations Peoplesoft SNCF",
+  "icons": [
+    {
+      "src": "/src/assets/images/robot_app_icon_1785488706867.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "display": "standalone"
+}
