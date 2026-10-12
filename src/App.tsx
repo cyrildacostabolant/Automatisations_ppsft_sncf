@@ -70,60 +70,45 @@ export default function App() {
     }
   };
 
-  // 2. Validate connection on Tab 1
-  const handleValidateConnection = () => {
-    setWorkflow((prev) => ({
-      ...prev,
-      step: 2,
-      connectionStatus: 'connected',
-    }));
-    showNotification("Connexion validée avec succès ! Les 5 onglets suivants sont débloqués.");
-  };
-
-  // 3. Open remaining tabs (Tabs 2 to 6)
-  const handleOpenRemainingTabs = () => {
-    const remainingTabs = tabs.filter((t) => !t.isFirstTab);
-
+  // 2. Open all 6 tabs directly
+  const handleOpenAllTabs = () => {
     if (workflow.launchMode === 'all_at_once') {
       let blockedAny = false;
       const timeStr = getFormattedTime();
-      const newOpenedIds = [...workflow.openedTabIds];
+      const allIds: number[] = [];
 
-      remainingTabs.forEach((tab) => {
+      tabs.forEach((tab) => {
         const win = window.open(tab.url, '_blank');
         if (!win || win.closed || typeof win.closed === 'undefined') {
           blockedAny = true;
         }
-        newOpenedIds.push(tab.id);
+        allIds.push(tab.id);
       });
 
       setTabs((prevTabs) =>
-        prevTabs.map((t) =>
-          !t.isFirstTab
-            ? { ...t, opened: true, openedAt: timeStr }
-            : t
-        )
+        prevTabs.map((t) => ({ ...t, opened: true, openedAt: timeStr }))
       );
 
       setWorkflow((prev) => ({
         ...prev,
         step: 3,
-        openedTabIds: Array.from(new Set(newOpenedIds)),
+        connectionStatus: 'connected',
+        openedTabIds: allIds,
       }));
 
       if (blockedAny) {
         setPopupBlockedWarning(true);
         setIsPopupGuideOpen(true);
-        showNotification("Certains onglets ont été bloqués par votre navigateur. Cliquez sur l'aide Pop-ups.");
+        showNotification("Certains onglets ont été bloqués par votre navigateur. Autorisez les pop-ups.");
       } else {
-        showNotification("Les 5 onglets PeopleSoft ont été ouverts dans l'ordre exact !");
+        showNotification("Les 6 onglets PeopleSoft ont été ouverts directement !");
       }
     } else {
       // Sequential delay mode
-      showNotification(`Ouverture séquentielle des onglets (${workflow.delayBetweenTabsMs}ms d'intervalle)...`);
+      showNotification(`Ouverture séquentielle des 6 onglets (${workflow.delayBetweenTabsMs}ms d'intervalle)...`);
       let count = 0;
 
-      remainingTabs.forEach((tab, index) => {
+      tabs.forEach((tab, index) => {
         setTimeout(() => {
           const win = window.open(tab.url, '_blank');
           if (!win || win.closed || typeof win.closed === 'undefined') {
@@ -141,9 +126,9 @@ export default function App() {
           }));
 
           count++;
-          if (count === remainingTabs.length) {
-            setWorkflow((prev) => ({ ...prev, step: 3 }));
-            showNotification("Tous les onglets ont été lancés avec succès !");
+          if (count === tabs.length) {
+            setWorkflow((prev) => ({ ...prev, step: 3, connectionStatus: 'connected' }));
+            showNotification("Les 6 onglets ont été lancés avec succès !");
           }
         }, index * workflow.delayBetweenTabsMs);
       });
@@ -277,19 +262,16 @@ export default function App() {
                 onChangeBusinessUnit={(val) => setWorkflow((prev) => ({ ...prev, businessUnit: val }))}
               />
 
-              {/* Interactive Step-by-Step Workflow Manager */}
+              {/* Direct Workflow Manager */}
               <WorkflowStepper
-                step={workflow.step}
-                isFirstTabOpened={isFirstTabOpened}
-                isConnected={isConnected}
+                tabs={tabs}
                 launchMode={workflow.launchMode}
                 delayBetweenTabsMs={workflow.delayBetweenTabsMs}
-                onOpenFirstTab={() => handleOpenTab(tabs[0])}
-                onValidateConnection={handleValidateConnection}
-                onOpenRemainingTabs={handleOpenRemainingTabs}
+                onOpenAllTabs={handleOpenAllTabs}
+                onOpenTab={handleOpenTab}
                 onChangeLaunchMode={(mode) => setWorkflow((prev) => ({ ...prev, launchMode: mode }))}
                 onChangeDelay={(delay) => setWorkflow((prev) => ({ ...prev, delayBetweenTabsMs: delay }))}
-                remainingCount={remainingCount}
+                openedCount={openedCount}
               />
 
               {/* Dynamic SQL Query Generator for PeopleSoft Sourcing */}

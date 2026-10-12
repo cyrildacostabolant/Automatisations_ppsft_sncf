@@ -1,238 +1,335 @@
 import React, { useState } from 'react';
-import { ExternalLink, CheckCircle2, ShieldCheck, Zap, Lock, Building2 } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Zap, Building2, Clock, Layers } from 'lucide-react';
+import { LaunchMode } from '../types';
 
 interface VendorCodificationProps {
   onShowNotification: (msg: string) => void;
   onPopupBlocked: () => void;
 }
 
+interface VendorTabItem {
+  id: number;
+  name: string;
+  code: string;
+  env: string;
+  url: string;
+  description: string;
+  opened: boolean;
+}
+
 export const VendorCodification: React.FC<VendorCodificationProps> = ({
   onShowNotification,
   onPopupBlocked,
 }) => {
-  const [isFirstTabOpened, setIsFirstTabOpened] = useState(false);
-  const [isConnectedConfirmed, setIsConnectedConfirmed] = useState(false);
-  const [sequenceOpened, setSequenceOpened] = useState(false);
-
-  const LOGIN_URL =
-    'https://www.erp.sncf.fr/psp/FPROD/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.UM_DISTR_INTVND.GBL?';
-
-  const VENDOR_TABS = [
+  const [vendorTabs, setVendorTabs] = useState<VendorTabItem[]>([
     {
       id: 1,
-      name: '1. Identification Fournisseur (VNDR_ID)',
-      env: 'FPROD_5',
-      url: 'https://www.erp.sncf.fr/psp/FPROD_5/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.VNDR_ID.GBL',
+      name: 'Distribution Fournisseur',
+      code: 'UM_DISTR_INTVND',
+      env: 'FPROD',
+      url: 'https://www.erp.sncf.fr/psp/FPROD/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.UM_DISTR_INTVND.GBL?',
+      description: 'Distribution interne et affectation du fournisseur',
+      opened: false,
     },
     {
       id: 2,
-      name: '2. Requête Statut Événement (N2_ACH_STS_FRS_EVE)',
-      env: 'FPROD_22',
-      url: 'https://www.erp.sncf.fr/psc/FPROD_22/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_STS_FRS_EVE',
+      name: 'Identification Fournisseur',
+      code: 'VNDR_ID',
+      env: 'FPROD_5',
+      url: 'https://www.erp.sncf.fr/psp/FPROD_5/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.VNDR_ID.GBL',
+      description: 'Fiche signalétique et identifiant du fournisseur',
+      opened: false,
     },
     {
       id: 3,
-      name: '3. Requête Mail Fournisseur (N2_ACH_MAIL_FRS)',
-      env: 'FPROD_3',
-      url: 'https://www.erp.sncf.fr/psc/FPROD_3/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_MAIL_FRS',
+      name: 'Requête Statut Événement',
+      code: 'N2_ACH_STS_FRS_EVE',
+      env: 'FPROD_22',
+      url: 'https://www.erp.sncf.fr/psc/FPROD_22/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_STS_FRS_EVE',
+      description: 'Consultation du statut événement fournisseur',
+      opened: false,
     },
     {
       id: 4,
-      name: '4. Requête Compte Fournisseur (N2_ACH_CPT_FRS_STS)',
+      name: 'Requête Mail Fournisseur',
+      code: 'N2_ACH_MAIL_FRS',
+      env: 'FPROD_3',
+      url: 'https://www.erp.sncf.fr/psc/FPROD_3/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_MAIL_FRS',
+      description: 'Adresses e-mail associées aux contacts fournisseurs',
+      opened: false,
+    },
+    {
+      id: 5,
+      name: 'Requête Compte Fournisseur',
+      code: 'N2_ACH_CPT_FRS_STS',
       env: 'FPROD_2',
       url: 'https://www.erp.sncf.fr/psc/FPROD_2/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_CPT_FRS_STS',
+      description: 'Comptes et coordonnées bancaires fournisseurs',
+      opened: false,
     },
-  ];
+  ]);
 
-  // Open main connection tab
-  const handleOpenLoginTab = () => {
-    const win = window.open(LOGIN_URL, '_blank');
+  const [launchMode, setLaunchMode] = useState<LaunchMode>('all_at_once');
+  const [delayBetweenTabsMs, setDelayBetweenTabsMs] = useState<number>(600);
+
+  const openedCount = vendorTabs.filter((t) => t.opened).length;
+  const allOpened = openedCount === vendorTabs.length;
+
+  // Open single tab
+  const handleOpenSingleTab = (tab: VendorTabItem) => {
+    const win = window.open(tab.url, '_blank');
     if (!win || win.closed || typeof win.closed === 'undefined') {
       onPopupBlocked();
-      onShowNotification("Attention : Le navigateur a bloqué l'ouverture de l'onglet.");
+      onShowNotification("Le navigateur a bloqué l'ouverture de l'onglet.");
     } else {
-      setIsFirstTabOpened(true);
-      onShowNotification("Onglet Connexion FPROD ouvert ! Veuillez vous connecter.");
+      setVendorTabs((prev) =>
+        prev.map((t) => (t.id === tab.id ? { ...t, opened: true } : t))
+      );
+      onShowNotification(`Onglet ${tab.name} ouvert !`);
     }
   };
 
-  // Launch sequence of 4 tabs
-  const handleLaunchSequence = () => {
-    if (!isConnectedConfirmed) return;
+  // Direct open of ALL vendor tabs
+  const handleOpenAllTabs = () => {
+    if (launchMode === 'all_at_once') {
+      let blockedAny = false;
+      vendorTabs.forEach((tab) => {
+        const win = window.open(tab.url, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          blockedAny = true;
+        }
+      });
 
-    let blocked = false;
-    VENDOR_TABS.forEach((tab) => {
-      const win = window.open(tab.url, '_blank');
-      if (!win || win.closed || typeof win.closed === 'undefined') {
-        blocked = true;
+      setVendorTabs((prev) => prev.map((t) => ({ ...t, opened: true })));
+
+      if (blockedAny) {
+        onPopupBlocked();
+        onShowNotification('Certains onglets ont été bloqués. Autorisez les pop-ups pour ce site.');
+      } else {
+        onShowNotification('Les 5 onglets de Codification Fournisseur ont été ouverts directement !');
       }
-    });
-
-    setSequenceOpened(true);
-
-    if (blocked) {
-      onPopupBlocked();
-      onShowNotification('Certains onglets ont été bloqués. Vérifiez les autorisations de pop-ups.');
     } else {
-      onShowNotification('Les 4 onglets de codification fournisseur ont été ouverts !');
+      // Sequential delay mode
+      onShowNotification(`Ouverture séquentielle des 5 onglets (${delayBetweenTabsMs}ms d'intervalle)...`);
+      let count = 0;
+
+      vendorTabs.forEach((tab, index) => {
+        setTimeout(() => {
+          const win = window.open(tab.url, '_blank');
+          if (!win || win.closed || typeof win.closed === 'undefined') {
+            onPopupBlocked();
+          }
+
+          setVendorTabs((prev) =>
+            prev.map((t) => (t.id === tab.id ? { ...t, opened: true } : t))
+          );
+
+          count++;
+          if (count === vendorTabs.length) {
+            onShowNotification('Les 5 onglets ont été ouverts avec succès !');
+          }
+        }, index * delayBetweenTabsMs);
+      });
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Overview Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-            <Building2 className="w-6 h-6" />
+      {/* 1. Zone d'action principale : Bouton AU-DESSUS de la séquence des onglets */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-8">
+        <div className="max-w-3xl mx-auto flex flex-col items-center text-center">
+          {/* Big Icon Circle */}
+          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner border border-indigo-100/60">
+            <Building2 className="w-8 h-8" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Module Codification Fournisseur
-            </h2>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Séquence d'ouverture automatique des interfaces &amp; requêtes PeopleSoft
+
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">
+            Module Codification Fournisseur
+          </h2>
+          <p className="text-sm text-slate-500 mb-6 max-w-lg">
+            Cliquez sur le bouton ci-dessous pour lancer directement les 5 interfaces et requêtes PeopleSoft.
+          </p>
+
+          {/* Bouton de lancement direct */}
+          <div className="w-full space-y-3 mb-6">
+            <button
+              onClick={handleOpenAllTabs}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-3 cursor-pointer text-base sm:text-lg group"
+            >
+              <Zap className="w-6 h-6 text-amber-300 group-hover:scale-110 transition-transform" />
+              Ouvrir directement les 5 onglets Codification Fournisseur
+            </button>
+
+            <p className="text-xs text-slate-400 font-medium">
+              Ouvre UM_DISTR_INTVND (FPROD), VNDR_ID (FPROD_5), N2_ACH_STS_FRS_EVE (FPROD_22), N2_ACH_MAIL_FRS (FPROD_3) et N2_ACH_CPT_FRS_STS (FPROD_2).
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-            PeopleSoft FPROD
-          </span>
-          <span className={`text-xs font-bold px-3 py-1 rounded-full ${isConnectedConfirmed ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
-            {isConnectedConfirmed ? 'Connecté' : 'Non confirmé'}
-          </span>
+
+          {/* Barre d'état & Options d'ouverture */}
+          <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-left">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                  allOpened
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-indigo-100 text-indigo-700'
+                }`}
+              >
+                {openedCount}/{vendorTabs.length}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Onglets Lancés
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {allOpened ? 'Tous les 5 ouverts' : `${vendorTabs.length - openedCount} non ouverts`}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  allOpened
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Statut
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {allOpened ? 'Séquence terminée' : 'Prêt à lancer'}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-center">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Mode
+                </span>
+                <select
+                  value={launchMode}
+                  onChange={(e) => setLaunchMode(e.target.value as LaunchMode)}
+                  className="bg-white font-semibold text-slate-700 px-2 py-0.5 rounded border border-slate-200 cursor-pointer text-xs focus:outline-none"
+                >
+                  <option value="all_at_once">Simultané (1 clic)</option>
+                  <option value="sequential_delay">Avec délai</option>
+                </select>
+              </div>
+              {launchMode === 'sequential_delay' && (
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 text-[11px] flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" /> Délai :
+                  </span>
+                  <select
+                    value={delayBetweenTabsMs}
+                    onChange={(e) => setDelayBetweenTabsMs(Number(e.target.value))}
+                    className="bg-white font-semibold text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 cursor-pointer text-[11px]"
+                  >
+                    <option value={300}>300 ms</option>
+                    <option value={600}>600 ms</option>
+                    <option value={1000}>1 sec</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Step 1: Login */}
-      <div className={`bg-white rounded-2xl border transition-all p-6 shadow-sm space-y-4 ${isFirstTabOpened ? 'border-indigo-200 bg-indigo-50/10' : 'border-slate-200'}`}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${isFirstTabOpened ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white'}`}>
-              1
+      {/* 2. Zone "Séquence des onglets" située AU-DESSOUS du bouton */}
+      <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-slate-200">
+        <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">
-                Étape 1 : Connexion à PeopleSoft FPROD
+                Séquence des 5 onglets
               </h3>
-              <p className="text-xs text-slate-400 font-medium">
-                Accéder à l'interface Maintain Vendors (UM_DISTR_INTVND)
+              <p className="text-xs text-slate-400">
+                Ordre officiel de codification des fournisseurs PeopleSoft SNCF
               </p>
             </div>
           </div>
-          {isFirstTabOpened && (
-            <span className="inline-flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Onglet ouvert
-            </span>
-          )}
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            {openedCount}/{vendorTabs.length} ouverts
+          </span>
         </div>
 
-        <div className="pt-2">
-          <button
-            onClick={handleOpenLoginTab}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer text-sm sm:text-base"
-          >
-            <ExternalLink className="w-4 h-4 text-indigo-400" />
-            Connexion FPROD
-          </button>
-        </div>
-      </div>
-
-      {/* Step 2: Confirmation & Launch Sequence */}
-      <div className={`bg-white rounded-2xl border transition-all p-6 shadow-sm space-y-5 ${isConnectedConfirmed ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'}`}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${sequenceOpened ? 'bg-emerald-500 text-white' : isConnectedConfirmed ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-              2
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800 text-base">
-                Étape 2 : Lancement de la séquence Codification (4 onglets)
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">
-                Confirmez votre authentification puis déclenchez l'ouverture simultanée
-              </p>
-            </div>
-          </div>
-          {!isConnectedConfirmed && (
-            <span className="inline-flex items-center text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-              <Lock className="w-3.5 h-3.5 mr-1 text-slate-400" /> Verrouillé
-            </span>
-          )}
-        </div>
-
-        {/* Confirmation Checkbox */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-          <label className="flex items-center space-x-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={isConnectedConfirmed}
-              onChange={(e) => {
-                setIsConnectedConfirmed(e.target.checked);
-                if (e.target.checked) {
-                  onShowNotification('Connexion confirmée. Bouton de séquence débloqué !');
-                }
-              }}
-              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-            />
-            <span className="text-sm font-semibold text-slate-800">
-              Je confirme être bien connecté à PeopleSoft FPROD
-            </span>
-          </label>
-
-          {isConnectedConfirmed && (
-            <span className="hidden sm:inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
-              <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Session confirmée
-            </span>
-          )}
-        </div>
-
-        {/* List of 4 target tabs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {VENDOR_TABS.map((tab) => (
+        {/* Grille des 5 onglets */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {vendorTabs.map((tab, idx) => (
             <div
               key={tab.id}
-              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between"
+              className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                tab.opened
+                  ? 'bg-emerald-50/50 border-emerald-200 text-slate-800 shadow-sm'
+                  : 'bg-slate-50/70 border-slate-200/80 text-slate-700 hover:border-slate-300'
+              }`}
             >
-              <div>
-                <p className="text-xs font-bold text-slate-800">{tab.name}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Environnement : <span className="font-semibold text-indigo-600">{tab.env}</span></p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                      tab.opened
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-indigo-700">
+                      {tab.env}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {tab.opened && (
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Ouvert
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleOpenSingleTab(tab)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer border border-transparent hover:border-slate-200 shadow-xs"
+                    title="Ouvrir cet onglet individuellement"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <button
-                disabled={!isConnectedConfirmed}
-                onClick={() => {
-                  const win = window.open(tab.url, '_blank');
-                  if (!win || win.closed || typeof win.closed === 'undefined') {
-                    onPopupBlocked();
-                  }
-                }}
-                className={`p-2 rounded-lg text-xs font-bold transition-all ${
-                  isConnectedConfirmed
-                    ? 'bg-white hover:bg-indigo-50 text-indigo-600 border border-slate-200 shadow-xs cursor-pointer'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                }`}
-                title="Ouvrir cet onglet séparément"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+
+              <div>
+                <p className="text-xs font-bold text-slate-800 line-clamp-1 mb-1">
+                  {tab.name}
+                </p>
+                <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                  {tab.description}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span className="truncate max-w-[180px]">{tab.code}</span>
+                <button
+                  onClick={() => handleOpenSingleTab(tab)}
+                  className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                >
+                  Ouvrir <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Launch Sequence Button */}
-        <button
-          disabled={!isConnectedConfirmed}
-          onClick={handleLaunchSequence}
-          className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-all ${
-            isConnectedConfirmed
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-indigo-500/20 cursor-pointer active:scale-[0.99]'
-              : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-          }`}
-        >
-          <Zap className="w-4 h-4" />
-          Lancer la séquence de codification fournisseur (4 onglets)
-        </button>
       </div>
     </div>
   );
