@@ -56,4 +56,13 @@ export const INITIAL_ERP_TABS: ErpTab[] = [
     envName: 'FPROD_20',
     opened: false,
   },
+  {
+    id: 7,
+    code: 'MOASI_ACH_FORCAGE_DA',
+    name: '7. Requête Forçage DA (MOASI_ACH_FORCAGE_DA)',
+    url: 'https://www.erp.sncf.fr/psc/FPROD_26/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.MOASI_ACH_FORCAGE_DA',
+    description: 'Requête PeopleSoft de suivi et contrôle du forçage de Demande d\'Achat.',
+    envName: 'FPROD_26',
+    opened: false,
+  },
 ];

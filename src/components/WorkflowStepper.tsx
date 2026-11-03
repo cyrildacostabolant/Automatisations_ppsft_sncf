@@ -39,7 +39,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
             Forcer la chaîne de Sourcing DA
           </h2>
           <p className="text-sm text-slate-500 mb-6 max-w-lg">
-            Cliquez sur le bouton ci-dessous pour ouvrir directement les 6 onglets PeopleSoft dans leur ordre de traitement.
+            Cliquez sur le bouton ci-dessous pour ouvrir directement les {tabs.length} onglets PeopleSoft dans leur ordre de traitement.
           </p>
 
           {/* Bouton de lancement direct */}
@@ -49,11 +49,11 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
               className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-3 cursor-pointer text-base sm:text-lg group"
             >
               <Zap className="w-6 h-6 text-amber-300 group-hover:scale-110 transition-transform" />
-              Ouvrir directement les 6 onglets PeopleSoft
+              Ouvrir directement les {tabs.length} onglets PeopleSoft
             </button>
 
             <p className="text-xs text-slate-400 font-medium">
-              Ouvre REQ_INQUIRY (FPROD), PO_REQ_SELECT (FPROD_4), BATCH_PO_CALC (FPROD_5), BATCH_PO_BUILD (FPROD_18), PO_KK_CHECK_REQ (FPROD_19) et PO_DISPATCH (FPROD_20).
+              Ouvre REQ_INQUIRY (FPROD), PO_REQ_SELECT (FPROD_4), BATCH_PO_CALC (FPROD_5), BATCH_PO_BUILD (FPROD_18), PO_KK_CHECK_REQ (FPROD_19), PO_DISPATCH (FPROD_20) et MOASI_ACH_FORCAGE_DA (FPROD_26).
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
                   Onglets Lancés
                 </span>
                 <span className="text-xs font-semibold text-slate-700">
-                  {allOpened ? 'Tous les 6 ouverts' : `${tabs.length - openedCount} non ouverts`}
+                  {allOpened ? `Tous les ${tabs.length} ouverts` : `${tabs.length - openedCount} non ouverts`}
                 </span>
               </div>
             </div>
@@ -143,7 +143,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">
-                Séquence des 6 onglets
+                Séquence des {tabs.length} onglets
               </h3>
               <p className="text-xs text-slate-400">
                 Ordre officiel du processus de sourcing PeopleSoft SNCF

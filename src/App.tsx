@@ -101,11 +101,11 @@ export default function App() {
         setIsPopupGuideOpen(true);
         showNotification("Certains onglets ont été bloqués par votre navigateur. Autorisez les pop-ups.");
       } else {
-        showNotification("Les 6 onglets PeopleSoft ont été ouverts directement !");
+        showNotification(`Les ${tabs.length} onglets PeopleSoft ont été ouverts directement !`);
       }
     } else {
       // Sequential delay mode
-      showNotification(`Ouverture séquentielle des 6 onglets (${workflow.delayBetweenTabsMs}ms d'intervalle)...`);
+      showNotification(`Ouverture séquentielle des ${tabs.length} onglets (${workflow.delayBetweenTabsMs}ms d'intervalle)...`);
       let count = 0;
 
       tabs.forEach((tab, index) => {
@@ -128,7 +128,7 @@ export default function App() {
           count++;
           if (count === tabs.length) {
             setWorkflow((prev) => ({ ...prev, step: 3, connectionStatus: 'connected' }));
-            showNotification("Les 6 onglets ont été lancés avec succès !");
+            showNotification(`Les ${tabs.length} onglets ont été lancés avec succès !`);
           }
         }, index * workflow.delayBetweenTabsMs);
       });
