@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { INITIAL_ERP_TABS } from './data/tabsData';
-import { ErpTab, LaunchMode, WorkflowState } from './types';
+import React, { useState } from 'react';
+import { INITIAL_ERP_TABS, INITIAL_VENDOR_TABS } from './data/tabsData';
+import { ErpTab, WorkflowState } from './types';
 import { Header } from './components/Header';
 import { WorkflowStepper } from './components/WorkflowStepper';
 import { QuickCopyBar } from './components/QuickCopyBar';
 import { SqlQueryGenerator } from './components/SqlQueryGenerator';
 import { VendorCodification } from './components/VendorCodification';
 import { PopupGuideModal } from './components/PopupGuideModal';
-import { AlertCircle, ShieldAlert, CheckCircle2, Zap, RotateCcw, HelpCircle, Database, Building2 } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Database, Building2 } from 'lucide-react';
 
 export default function App() {
   const [activeAutomationTab, setActiveAutomationTab] = useState<'sourcing_da' | 'vendor_codification'>('sourcing_da');
@@ -41,150 +41,109 @@ export default function App() {
     setTimeout(() => setActiveMessage(null), 4000);
   };
 
-  // 1. Open individual tab
-  const handleOpenTab = (tab: ErpTab) => {
-    const win = window.open(tab.url, '_blank');
-    if (!win || win.closed || typeof win.closed === 'undefined') {
-      setPopupBlockedWarning(true);
-      showNotification("Attention : Le navigateur a bloqué l'ouverture de l'onglet.");
-    }
-
+  // Mark a tab as opened (used by native <a target="_blank"> links without calling window.open)
+  const handleMarkTabOpened = (tabId: number) => {
     const timeStr = getFormattedTime();
-
     setTabs((prevTabs) =>
       prevTabs.map((t) =>
-        t.id === tab.id
-          ? { ...t, opened: true, openedAt: timeStr }
-          : t
+        t.id === tabId ? { ...t, opened: true, openedAt: timeStr } : t
       )
     );
-
     setWorkflow((prev) => ({
       ...prev,
-      openedTabIds: Array.from(new Set([...prev.openedTabIds, tab.id])),
-      connectionStatus: tab.isFirstTab ? 'awaiting_login' : prev.connectionStatus,
+      openedTabIds: Array.from(new Set([...prev.openedTabIds, tabId])),
     }));
-
-    if (tab.isFirstTab && workflow.step === 1) {
-      showNotification("1er onglet ouvert ! Veuillez vous connecter à PeopleSoft puis cliquer sur 'Valider ma connexion'.");
-    }
   };
 
-  // 2. Open all 6 tabs directly
+  // Reset only tab opened state (keeps BU / DA / mode)
+  const handleResetTabs = () => {
+    setTabs(INITIAL_ERP_TABS);
+    setWorkflow((prev) => ({
+      ...prev,
+      step: 1,
+      connectionStatus: 'not_started',
+      openedTabIds: [],
+    }));
+    showNotification('Séquence Sourcing DA réinitialisée.');
+  };
+
+  // Open all tabs via window.open
   const handleOpenAllTabs = () => {
     if (workflow.launchMode === 'all_at_once') {
       let blockedAny = false;
       const timeStr = getFormattedTime();
-      const allIds: number[] = [];
+      const openedIds: number[] = [];
 
       tabs.forEach((tab) => {
         const win = window.open(tab.url, '_blank');
         if (!win || win.closed || typeof win.closed === 'undefined') {
           blockedAny = true;
+        } else {
+          openedIds.push(tab.id);
         }
-        allIds.push(tab.id);
       });
 
-      setTabs((prevTabs) =>
-        prevTabs.map((t) => ({ ...t, opened: true, openedAt: timeStr }))
-      );
-
-      setWorkflow((prev) => ({
-        ...prev,
-        step: 3,
-        connectionStatus: 'connected',
-        openedTabIds: allIds,
-      }));
+      if (openedIds.length > 0) {
+        setTabs((prevTabs) =>
+          prevTabs.map((t) =>
+            openedIds.includes(t.id) ? { ...t, opened: true, openedAt: timeStr } : t
+          )
+        );
+        setWorkflow((prev) => ({
+          ...prev,
+          openedTabIds: Array.from(new Set([...prev.openedTabIds, ...openedIds])),
+        }));
+      }
 
       if (blockedAny) {
         setPopupBlockedWarning(true);
         setIsPopupGuideOpen(true);
-        showNotification("Certains onglets ont été bloqués par votre navigateur. Autorisez les pop-ups.");
+        showNotification(
+          'Pop-ups bloqués : utilisez l\'export Favoris (.html), le script .bat ou le mode Sans popup.'
+        );
       } else {
+        setWorkflow((prev) => ({ ...prev, step: 3, connectionStatus: 'connected' }));
         showNotification(`Les ${tabs.length} onglets PeopleSoft ont été ouverts directement !`);
       }
     } else {
       // Sequential delay mode
       showNotification(`Ouverture séquentielle des ${tabs.length} onglets (${workflow.delayBetweenTabsMs}ms d'intervalle)...`);
       let count = 0;
+      let blockedAny = false;
 
       tabs.forEach((tab, index) => {
         setTimeout(() => {
           const win = window.open(tab.url, '_blank');
           if (!win || win.closed || typeof win.closed === 'undefined') {
-            setPopupBlockedWarning(true);
+            blockedAny = true;
+          } else {
+            const timeStr = getFormattedTime();
+            setTabs((prev) =>
+              prev.map((t) => (t.id === tab.id ? { ...t, opened: true, openedAt: timeStr } : t))
+            );
+            setWorkflow((prev) => ({
+              ...prev,
+              openedTabIds: Array.from(new Set([...prev.openedTabIds, tab.id])),
+            }));
           }
-          const timeStr = getFormattedTime();
-
-          setTabs((prev) =>
-            prev.map((t) => (t.id === tab.id ? { ...t, opened: true, openedAt: timeStr } : t))
-          );
-
-          setWorkflow((prev) => ({
-            ...prev,
-            openedTabIds: Array.from(new Set([...prev.openedTabIds, tab.id])),
-          }));
 
           count++;
           if (count === tabs.length) {
-            setWorkflow((prev) => ({ ...prev, step: 3, connectionStatus: 'connected' }));
-            showNotification(`Les ${tabs.length} onglets ont été lancés avec succès !`);
+            if (blockedAny) {
+              setPopupBlockedWarning(true);
+              setIsPopupGuideOpen(true);
+              showNotification('Pop-ups bloqués par votre navigateur. Utilisez la solution Favoris ou Script .bat.');
+            } else {
+              setWorkflow((prev) => ({ ...prev, step: 3, connectionStatus: 'connected' }));
+              showNotification(`Les ${tabs.length} onglets ont été lancés avec succès !`);
+            }
           }
         }, index * workflow.delayBetweenTabsMs);
       });
     }
   };
 
-  // Toggle individual tab status (Manual check)
-  const handleToggleTabStatus = (id: number) => {
-    setTabs((prevTabs) =>
-      prevTabs.map((t) =>
-        t.id === id
-          ? { ...t, opened: !t.opened, openedAt: !t.opened ? getFormattedTime() : undefined }
-          : t
-      )
-    );
-  };
-
-  // Test popup tool
-  const handleTestPopup = () => {
-    const win1 = window.open('about:blank', '_blank');
-    const win2 = window.open('about:blank', '_blank');
-
-    if (!win1 || !win2 || win1.closed || win2.closed) {
-      setPopupBlockedWarning(true);
-      setIsPopupGuideOpen(true);
-      if (win1) win1.close();
-      if (win2) win2.close();
-    } else {
-      setPopupBlockedWarning(false);
-      win1.close();
-      win2.close();
-      showNotification("Test réussi ! Votre navigateur autorise l'ouverture de fenêtres multiples.");
-    }
-  };
-
-  // Reset overall state
-  const handleReset = () => {
-    setTabs(INITIAL_ERP_TABS);
-    setWorkflow({
-      step: 1,
-      connectionStatus: 'not_started',
-      openedTabIds: [],
-      launchMode: 'all_at_once',
-      delayBetweenTabsMs: 600,
-      requisitionId: '',
-      businessUnit: '',
-      processNotes: '',
-    });
-    setPopupBlockedWarning(false);
-    showNotification("Workflow réinitialisé.");
-  };
-
   const openedCount = tabs.filter((t) => t.opened).length;
-  const isFirstTabOpened = tabs.find((t) => t.isFirstTab)?.opened || false;
-  const isConnected = workflow.connectionStatus === 'connected';
-  const remainingCount = tabs.filter((t) => !t.isFirstTab && !t.opened).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased flex flex-col justify-between">
@@ -196,15 +155,15 @@ export default function App() {
         {popupBlockedWarning && (
           <div className="bg-amber-500 text-white px-4 py-2.5 shadow-md flex items-center justify-between text-xs sm:text-sm font-medium">
             <div className="max-w-7xl mx-auto flex items-center space-x-2">
-              <ShieldAlert className="w-5 h-5 flex-shrink-0 animate-bounce" />
+              <ShieldAlert className="w-5 h-5 flex-shrink-0" />
               <span>
-                Les fenêtres surgissantes (pop-ups) semblent bloquées par votre navigateur.
+                Les pop-ups sont bloqués par votre navigateur/administrateur.
               </span>
               <button
                 onClick={() => setIsPopupGuideOpen(true)}
                 className="underline hover:text-amber-100 font-bold ml-2 cursor-pointer"
               >
-                Voir la solution
+                Ouvrir tout automatiquement (Favoris / Script .bat)
               </button>
             </div>
             <button
@@ -268,7 +227,9 @@ export default function App() {
                 launchMode={workflow.launchMode}
                 delayBetweenTabsMs={workflow.delayBetweenTabsMs}
                 onOpenAllTabs={handleOpenAllTabs}
-                onOpenTab={handleOpenTab}
+                onMarkTabOpened={handleMarkTabOpened}
+                onResetTabs={handleResetTabs}
+                onOpenBypassModal={() => setIsPopupGuideOpen(true)}
                 onChangeLaunchMode={(mode) => setWorkflow((prev) => ({ ...prev, launchMode: mode }))}
                 onChangeDelay={(delay) => setWorkflow((prev) => ({ ...prev, delayBetweenTabsMs: delay }))}
                 openedCount={openedCount}
@@ -287,15 +248,19 @@ export default function App() {
                 setPopupBlockedWarning(true);
                 setIsPopupGuideOpen(true);
               }}
+              onOpenBypassModal={() => setIsPopupGuideOpen(true)}
             />
           )}
         </main>
 
-        {/* Popup Guide Modal Dialog */}
+        {/* Popup Bypass Solutions Modal Dialog */}
         <PopupGuideModal
           isOpen={isPopupGuideOpen}
           onClose={() => setIsPopupGuideOpen(false)}
-          onTestPopup={handleTestPopup}
+          activeModule={activeAutomationTab}
+          sourcingTabs={INITIAL_ERP_TABS}
+          vendorTabs={INITIAL_VENDOR_TABS}
+          onShowNotification={showNotification}
         />
       </div>
 

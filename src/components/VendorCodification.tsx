@@ -1,95 +1,49 @@
 import React, { useState } from 'react';
-import { ExternalLink, CheckCircle2, Zap, Building2, Clock, Layers } from 'lucide-react';
-import { LaunchMode } from '../types';
+import {
+  ExternalLink,
+  CheckCircle2,
+  Zap,
+  Building2,
+  Clock,
+  Layers,
+  ShieldCheck,
+  RotateCcw,
+  MousePointerClick,
+} from 'lucide-react';
+import { ErpTab, LaunchMode } from '../types';
+import { INITIAL_VENDOR_TABS } from '../data/tabsData';
 
 interface VendorCodificationProps {
   onShowNotification: (msg: string) => void;
   onPopupBlocked: () => void;
-}
-
-interface VendorTabItem {
-  id: number;
-  name: string;
-  code: string;
-  env: string;
-  url: string;
-  description: string;
-  opened: boolean;
+  onOpenBypassModal: () => void;
 }
 
 export const VendorCodification: React.FC<VendorCodificationProps> = ({
   onShowNotification,
   onPopupBlocked,
+  onOpenBypassModal,
 }) => {
-  const [vendorTabs, setVendorTabs] = useState<VendorTabItem[]>([
-    {
-      id: 1,
-      name: 'Distribution Fournisseur',
-      code: 'UM_DISTR_INTVND',
-      env: 'FPROD',
-      url: 'https://www.erp.sncf.fr/psp/FPROD/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.UM_DISTR_INTVND.GBL?',
-      description: 'Distribution interne et affectation du fournisseur',
-      opened: false,
-    },
-    {
-      id: 2,
-      name: 'Identification Fournisseur',
-      code: 'VNDR_ID',
-      env: 'FPROD_5',
-      url: 'https://www.erp.sncf.fr/psp/FPROD_5/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.VNDR_ID.GBL',
-      description: 'Fiche signalétique et identifiant du fournisseur',
-      opened: false,
-    },
-    {
-      id: 3,
-      name: 'Requête Statut Événement',
-      code: 'N2_ACH_STS_FRS_EVE',
-      env: 'FPROD_22',
-      url: 'https://www.erp.sncf.fr/psc/FPROD_22/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_STS_FRS_EVE',
-      description: 'Consultation du statut événement fournisseur',
-      opened: false,
-    },
-    {
-      id: 4,
-      name: 'Requête Mail Fournisseur',
-      code: 'N2_ACH_MAIL_FRS',
-      env: 'FPROD_3',
-      url: 'https://www.erp.sncf.fr/psc/FPROD_3/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_MAIL_FRS',
-      description: 'Adresses e-mail associées aux contacts fournisseurs',
-      opened: false,
-    },
-    {
-      id: 5,
-      name: 'Requête Compte Fournisseur',
-      code: 'N2_ACH_CPT_FRS_STS',
-      env: 'FPROD_2',
-      url: 'https://www.erp.sncf.fr/psc/FPROD_2/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_CPT_FRS_STS',
-      description: 'Comptes et coordonnées bancaires fournisseurs',
-      opened: false,
-    },
-  ]);
-
+  const [vendorTabs, setVendorTabs] = useState<ErpTab[]>(INITIAL_VENDOR_TABS);
   const [launchMode, setLaunchMode] = useState<LaunchMode>('all_at_once');
   const [delayBetweenTabsMs, setDelayBetweenTabsMs] = useState<number>(600);
 
   const openedCount = vendorTabs.filter((t) => t.opened).length;
   const allOpened = openedCount === vendorTabs.length;
+  const nextTab = vendorTabs.find((t) => !t.opened);
 
-  // Open single tab
-  const handleOpenSingleTab = (tab: VendorTabItem) => {
-    const win = window.open(tab.url, '_blank');
-    if (!win || win.closed || typeof win.closed === 'undefined') {
-      onPopupBlocked();
-      onShowNotification("Le navigateur a bloqué l'ouverture de l'onglet.");
-    } else {
-      setVendorTabs((prev) =>
-        prev.map((t) => (t.id === tab.id ? { ...t, opened: true } : t))
-      );
-      onShowNotification(`Onglet ${tab.name} ouvert !`);
-    }
+  const handleMarkTabOpened = (tabId: number) => {
+    setVendorTabs((prev) =>
+      prev.map((t) => (t.id === tabId ? { ...t, opened: true } : t))
+    );
   };
 
-  // Direct open of ALL vendor tabs
+  const handleResetTabs = () => {
+    setVendorTabs(INITIAL_VENDOR_TABS);
+    onShowNotification('Séquence Codification Fournisseur réinitialisée.');
+  };
+
+  // Direct open of ALL vendor tabs via window.open
   const handleOpenAllTabs = () => {
     if (launchMode === 'all_at_once') {
       let blockedAny = false;
@@ -100,33 +54,46 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
         }
       });
 
-      setVendorTabs((prev) => prev.map((t) => ({ ...t, opened: true })));
-
       if (blockedAny) {
         onPopupBlocked();
-        onShowNotification('Certains onglets ont été bloqués. Autorisez les pop-ups pour ce site.');
+        onShowNotification(
+          'Pop-ups bloqués : utilisez l\'export Favoris (.html), le script .bat ou le mode Sans popup.'
+        );
       } else {
-        onShowNotification('Les 5 onglets de Codification Fournisseur ont été ouverts directement !');
+        setVendorTabs((prev) => prev.map((t) => ({ ...t, opened: true })));
+        onShowNotification(
+          `Les ${vendorTabs.length} onglets de Codification Fournisseur ont été ouverts directement !`
+        );
       }
     } else {
       // Sequential delay mode
-      onShowNotification(`Ouverture séquentielle des 5 onglets (${delayBetweenTabsMs}ms d'intervalle)...`);
+      onShowNotification(
+        `Ouverture séquentielle des ${vendorTabs.length} onglets (${delayBetweenTabsMs}ms d'intervalle)...`
+      );
       let count = 0;
+      let blockedAny = false;
 
       vendorTabs.forEach((tab, index) => {
         setTimeout(() => {
           const win = window.open(tab.url, '_blank');
           if (!win || win.closed || typeof win.closed === 'undefined') {
-            onPopupBlocked();
+            blockedAny = true;
+          } else {
+            setVendorTabs((prev) =>
+              prev.map((t) => (t.id === tab.id ? { ...t, opened: true } : t))
+            );
           }
-
-          setVendorTabs((prev) =>
-            prev.map((t) => (t.id === tab.id ? { ...t, opened: true } : t))
-          );
 
           count++;
           if (count === vendorTabs.length) {
-            onShowNotification('Les 5 onglets ont été ouverts avec succès !');
+            if (blockedAny) {
+              onPopupBlocked();
+              onShowNotification(
+                'Pop-ups bloqués par votre navigateur. Utilisez la solution Favoris ou Script .bat.'
+              );
+            } else {
+              onShowNotification(`Les ${vendorTabs.length} onglets ont été ouverts avec succès !`);
+            }
           }
         }, index * delayBetweenTabsMs);
       });
@@ -147,44 +114,103 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
             Module Codification Fournisseur
           </h2>
           <p className="text-sm text-slate-500 mb-6 max-w-lg">
-            Cliquez sur le bouton ci-dessous pour lancer directement les 5 interfaces et requêtes PeopleSoft.
+            Cliquez sur le bouton ci-dessous pour lancer directement les {vendorTabs.length} interfaces et requêtes PeopleSoft.
           </p>
 
-          {/* Bouton de lancement direct */}
+          {/* Bouton de lancement direct + Alternatives Sans Popup */}
           <div className="w-full space-y-3 mb-6">
             <button
               onClick={handleOpenAllTabs}
               className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-3 cursor-pointer text-base sm:text-lg group"
             >
               <Zap className="w-6 h-6 text-amber-300 group-hover:scale-110 transition-transform" />
-              Ouvrir directement les 5 onglets Codification Fournisseur
+              Ouvrir directement les {vendorTabs.length} onglets Codification Fournisseur
             </button>
 
-            <p className="text-xs text-slate-400 font-medium">
-              Ouvre UM_DISTR_INTVND (FPROD), VNDR_ID (FPROD_5), N2_ACH_STS_FRS_EVE (FPROD_22), N2_ACH_MAIL_FRS (FPROD_3) et N2_ACH_CPT_FRS_STS (FPROD_2).
+            {/* Zone Sans Popup (Blocage Admin) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {nextTab ? (
+                <a
+                  key={nextTab.id}
+                  href={nextTab.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    const idToMark = nextTab.id;
+                    setTimeout(() => handleMarkTabOpened(idToMark), 0);
+                  }}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) {
+                      const idToMark = nextTab.id;
+                      setTimeout(() => handleMarkTabOpened(idToMark), 0);
+                    }
+                  }}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
+                  title="Astuce : Maintenez Ctrl + Clic pour ouvrir en arrière-plan sans quitter cette page"
+                >
+                  <MousePointerClick className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">
+                    Sans popup ({openedCount + 1}/{vendorTabs.length}) : {nextTab.code}
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </a>
+              ) : (
+                <button
+                  onClick={handleResetTabs}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-emerald-600" />
+                  Séquence terminée &bull; Réinitialiser ({vendorTabs.length}/{vendorTabs.length})
+                </button>
+              )}
+
+              <button
+                onClick={onOpenBypassModal}
+                className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                Pop-ups bloqués ? Tout ouvrir (Favoris / .bat)
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400 font-medium">
+              Astuce sans popup : maintenez <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600 font-mono">Ctrl</kbd> + cliquez sur le bouton noir ci-dessus {vendorTabs.length} fois de suite (ou utilisez l&apos;export Favoris / script .bat).
             </p>
           </div>
 
           {/* Barre d'état & Options d'ouverture */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-left">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                  allOpened
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-indigo-100 text-indigo-700'
-                }`}
-              >
-                {openedCount}/{vendorTabs.length}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                    allOpened
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-indigo-100 text-indigo-700'
+                  }`}
+                >
+                  {openedCount}/{vendorTabs.length}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Onglets Lancés
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {allOpened
+                      ? `Tous les ${vendorTabs.length} ouverts`
+                      : `${vendorTabs.length - openedCount} non ouverts`}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Onglets Lancés
-                </span>
-                <span className="text-xs font-semibold text-slate-700">
-                  {allOpened ? 'Tous les 5 ouverts' : `${vendorTabs.length - openedCount} non ouverts`}
-                </span>
-              </div>
+              {openedCount > 0 && (
+                <button
+                  onClick={handleResetTabs}
+                  title="Réinitialiser l'état des onglets"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
@@ -251,10 +277,10 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">
-                Séquence des 5 onglets
+                Séquence des {vendorTabs.length} onglets
               </h3>
               <p className="text-xs text-slate-400">
-                Ordre officiel de codification des fournisseurs PeopleSoft SNCF
+                Liens directs natifs (compatibles Ctrl+Clic et Clic molette)
               </p>
             </div>
           </div>
@@ -263,7 +289,7 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
           </span>
         </div>
 
-        {/* Grille des 5 onglets */}
+        {/* Grille des onglets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {vendorTabs.map((tab, idx) => (
             <div
@@ -287,7 +313,7 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-indigo-700">
-                      {tab.env}
+                      {tab.envName}
                     </span>
                   </div>
                 </div>
@@ -299,13 +325,19 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
                       Ouvert
                     </span>
                   )}
-                  <button
-                    onClick={() => handleOpenSingleTab(tab)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer border border-transparent hover:border-slate-200 shadow-xs"
-                    title="Ouvrir cet onglet individuellement"
+                  <a
+                    href={tab.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => handleMarkTabOpened(tab.id)}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) handleMarkTabOpened(tab.id);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-all border border-transparent hover:border-slate-200 shadow-xs"
+                    title="Ouvrir cet onglet (lien direct sans popup)"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
+                  </a>
                 </div>
               </div>
 
@@ -320,12 +352,18 @@ export const VendorCodification: React.FC<VendorCodificationProps> = ({
 
               <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-slate-400 font-mono">
                 <span className="truncate max-w-[180px]">{tab.code}</span>
-                <button
-                  onClick={() => handleOpenSingleTab(tab)}
-                  className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                <a
+                  href={tab.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleMarkTabOpened(tab.id)}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) handleMarkTabOpened(tab.id);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 hover:underline"
                 >
                   Ouvrir <ExternalLink className="w-3 h-3" />
-                </button>
+                </a>
               </div>
             </div>
           ))}

@@ -1,5 +1,14 @@
 import React from 'react';
-import { ExternalLink, CheckCircle2, Zap, Clock, Layers } from 'lucide-react';
+import {
+  ExternalLink,
+  CheckCircle2,
+  Zap,
+  Clock,
+  Layers,
+  ShieldCheck,
+  RotateCcw,
+  MousePointerClick,
+} from 'lucide-react';
 import { ErpTab, LaunchMode } from '../types';
 
 interface WorkflowStepperProps {
@@ -7,7 +16,9 @@ interface WorkflowStepperProps {
   launchMode: LaunchMode;
   delayBetweenTabsMs: number;
   onOpenAllTabs: () => void;
-  onOpenTab: (tab: ErpTab) => void;
+  onMarkTabOpened: (tabId: number) => void;
+  onResetTabs: () => void;
+  onOpenBypassModal: () => void;
   onChangeLaunchMode: (mode: LaunchMode) => void;
   onChangeDelay: (delay: number) => void;
   openedCount: number;
@@ -18,12 +29,15 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
   launchMode,
   delayBetweenTabsMs,
   onOpenAllTabs,
-  onOpenTab,
+  onMarkTabOpened,
+  onResetTabs,
+  onOpenBypassModal,
   onChangeLaunchMode,
   onChangeDelay,
   openedCount,
 }) => {
   const allOpened = openedCount === tabs.length;
+  const nextTab = tabs.find((t) => !t.opened);
 
   return (
     <div className="space-y-6">
@@ -42,7 +56,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
             Cliquez sur le bouton ci-dessous pour ouvrir directement les {tabs.length} onglets PeopleSoft dans leur ordre de traitement.
           </p>
 
-          {/* Bouton de lancement direct */}
+          {/* Bouton de lancement direct + Alternatives Sans Popup */}
           <div className="w-full space-y-3 mb-6">
             <button
               onClick={onOpenAllTabs}
@@ -52,31 +66,88 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
               Ouvrir directement les {tabs.length} onglets PeopleSoft
             </button>
 
-            <p className="text-xs text-slate-400 font-medium">
-              Ouvre REQ_INQUIRY (FPROD), PO_REQ_SELECT (FPROD_4), BATCH_PO_CALC (FPROD_5), BATCH_PO_BUILD (FPROD_18), PO_KK_CHECK_REQ (FPROD_19), PO_DISPATCH (FPROD_20) et MOASI_ACH_FORCAGE_DA (FPROD_26).
+            {/* Zone Sans Popup (Blocage Admin) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {nextTab ? (
+                <a
+                  key={nextTab.id}
+                  href={nextTab.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    const idToMark = nextTab.id;
+                    setTimeout(() => onMarkTabOpened(idToMark), 0);
+                  }}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) {
+                      const idToMark = nextTab.id;
+                      setTimeout(() => onMarkTabOpened(idToMark), 0);
+                    }
+                  }}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
+                  title="Astuce : Maintenez Ctrl + Clic pour ouvrir en arrière-plan sans quitter cette page"
+                >
+                  <MousePointerClick className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">
+                    Sans popup ({openedCount + 1}/{tabs.length}) : {nextTab.code}
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </a>
+              ) : (
+                <button
+                  onClick={onResetTabs}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-emerald-600" />
+                  Séquence terminée &bull; Réinitialiser ({tabs.length}/{tabs.length})
+                </button>
+              )}
+
+              <button
+                onClick={onOpenBypassModal}
+                className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                Pop-ups bloqués ? Tout ouvrir (Favoris / .bat)
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400 font-medium">
+              Astuce sans popup : maintenez <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600 font-mono">Ctrl</kbd> + cliquez sur le bouton noir ci-dessus {tabs.length} fois de suite (ou utilisez l&apos;export Favoris / script .bat).
             </p>
           </div>
 
           {/* Barre d'état & Options d'ouverture */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-left">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                  allOpened
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-indigo-100 text-indigo-700'
-                }`}
-              >
-                {openedCount}/{tabs.length}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                    allOpened
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-indigo-100 text-indigo-700'
+                  }`}
+                >
+                  {openedCount}/{tabs.length}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Onglets Lancés
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {allOpened ? `Tous les ${tabs.length} ouverts` : `${tabs.length - openedCount} non ouverts`}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Onglets Lancés
-                </span>
-                <span className="text-xs font-semibold text-slate-700">
-                  {allOpened ? `Tous les ${tabs.length} ouverts` : `${tabs.length - openedCount} non ouverts`}
-                </span>
-              </div>
+              {openedCount > 0 && (
+                <button
+                  onClick={onResetTabs}
+                  title="Réinitialiser l'état des onglets"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
@@ -146,7 +217,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
                 Séquence des {tabs.length} onglets
               </h3>
               <p className="text-xs text-slate-400">
-                Ordre officiel du processus de sourcing PeopleSoft SNCF
+                Liens directs natifs (compatibles Ctrl+Clic et Clic molette)
               </p>
             </div>
           </div>
@@ -155,7 +226,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
           </span>
         </div>
 
-        {/* Grille des 6 onglets */}
+        {/* Grille des onglets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {tabs.map((tab, idx) => (
             <div
@@ -191,13 +262,19 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
                       Ouvert
                     </span>
                   )}
-                  <button
-                    onClick={() => onOpenTab(tab)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer border border-transparent hover:border-slate-200 shadow-xs"
-                    title="Ouvrir cet onglet individuellement"
+                  <a
+                    href={tab.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onMarkTabOpened(tab.id)}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) onMarkTabOpened(tab.id);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white transition-all border border-transparent hover:border-slate-200 shadow-xs"
+                    title="Ouvrir cet onglet (lien direct sans popup)"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
+                  </a>
                 </div>
               </div>
 
@@ -212,12 +289,18 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
 
               <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[10px] text-slate-400 font-mono">
                 <span className="truncate max-w-[180px]">{tab.code}</span>
-                <button
-                  onClick={() => onOpenTab(tab)}
-                  className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                <a
+                  href={tab.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onMarkTabOpened(tab.id)}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) onMarkTabOpened(tab.id);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 hover:underline"
                 >
                   Ouvrir <ExternalLink className="w-3 h-3" />
-                </button>
+                </a>
               </div>
             </div>
           ))}

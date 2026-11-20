@@ -66,3 +66,53 @@ export const INITIAL_ERP_TABS: ErpTab[] = [
     opened: false,
   },
 ];
+
+export const INITIAL_VENDOR_TABS: ErpTab[] = [
+  {
+    id: 1,
+    code: 'UM_DISTR_INTVND',
+    name: '1. Distribution Fournisseur',
+    url: 'https://www.erp.sncf.fr/psp/FPROD/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.UM_DISTR_INTVND.GBL?',
+    description: 'Distribution interne et affectation du fournisseur.',
+    envName: 'FPROD',
+    opened: false,
+    isFirstTab: true,
+  },
+  {
+    id: 2,
+    code: 'VNDR_ID',
+    name: '2. Identification Fournisseur',
+    url: 'https://www.erp.sncf.fr/psp/FPROD_5/EMPLOYEE/ERP/c/MAINTAIN_VENDORS.VNDR_ID.GBL',
+    description: 'Fiche signalétique et identifiant du fournisseur.',
+    envName: 'FPROD_5',
+    opened: false,
+  },
+  {
+    id: 3,
+    code: 'N2_ACH_STS_FRS_EVE',
+    name: '3. Requête Statut Événement',
+    url: 'https://www.erp.sncf.fr/psc/FPROD_22/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_STS_FRS_EVE',
+    description: 'Consultation du statut événement fournisseur.',
+    envName: 'FPROD_22',
+    opened: false,
+  },
+  {
+    id: 4,
+    code: 'N2_ACH_MAIL_FRS',
+    name: '4. Requête Mail Fournisseur',
+    url: 'https://www.erp.sncf.fr/psc/FPROD_3/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_MAIL_FRS',
+    description: 'Adresses e-mail associées aux contacts fournisseurs.',
+    envName: 'FPROD_3',
+    opened: false,
+  },
+  {
+    id: 5,
+    code: 'N2_ACH_CPT_FRS_STS',
+    name: '5. Requête Compte Fournisseur',
+    url: 'https://www.erp.sncf.fr/psc/FPROD_2/EMPLOYEE/ERP/q/?ICAction=ICQryNameURL=PRIVATE.N2_ACH_CPT_FRS_STS',
+    description: 'Comptes et coordonnées bancaires fournisseurs.',
+    envName: 'FPROD_2',
+    opened: false,
+  },
+];
+
